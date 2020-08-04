@@ -14,7 +14,7 @@ The program operates from the command line, to build it use the following comman
 Example usage:
 
 ```
-    cargo run --release models/dauntless.obj dauntless.brs -s 60 --simplify lossless
+    models/dauntless.obj dauntless.brs -s 60 --simplify lossless
 ```
 
 The program supports two color modes when simplifying: lossless, and lossy. Lossless will prioritize color accuracy, while lossy will prioritize brick count.
