@@ -38,53 +38,67 @@ struct Opt {
 
 fn main() {
     let opt = Opt::from_args();
-    let mut octree = VoxelTree::<Vector4::<u8>>::new();
-    {
-        match opt.file.extension() {
-            Some(extension) => {
-                match extension.to_str() {
-                    Some("obj") => {}
-                    _ => return println!("Only input files of type obj are supported")
-                }
-            },
-            None => return println!("Invalid input file type")
-        };
-
-        let file = match opt.file.canonicalize() {
-            Err(e) => return println!("Error encountered when looking for file {:?}: {:?}", opt.file, e.to_string()),
-            Ok(f) => f
-        };
-
-        println!("Importing model...");
-        let (mut models, materials) = tobj::load_obj(&file, true).unwrap();
-
-        println!("Loading materials...");
-        let mut material_images = Vec::<RgbaImage>::new();
-        for material in materials {
-            let image_path = file.canonicalize().unwrap().parent().unwrap().join(material.diffuse_texture);
-            println!("{:?}", image_path);
-            let image = image::open(image_path).unwrap().into_rgba();
-            material_images.push(image);
-        }
-
-        println!("Voxelizing...");
-        voxelize(&mut models, &material_images, &mut octree, opt.scale);
-    }
+    let mut octree = generate_octree(&opt);
 
     match opt.output.extension() {
         Some(extension) => {
             match extension.to_str() {
                 Some("brs") => write_brs_data(&mut octree, opt.output, opt.simplify),
-                Some(extension) => println!("Output file type {} is not supported", extension),
-                None => println!("Invalid output file type")
+                // Implement new file types
+                Some(extension) => panic!("Output file type {} is not supported", extension),
+                None => panic!("Invalid output file type")
             }
         },
-        None => println!("Invalid output file type")
+        None => panic!("Invalid output file type")
     }
 }
 
+fn generate_octree(opt: &Opt) -> VoxelTree<Vector4<u8>> {
+    match opt.file.extension() {
+        Some(extension) => {
+            match extension.to_str() {
+                Some("obj") => {}
+                _ => panic!("Only input files of type obj are supported")
+            }
+        },
+        None => panic!("Invalid input file type")
+    };
+
+    let file = match opt.file.canonicalize() {
+        Err(e) => panic!("Error encountered when looking for file {:?}: {:?}", opt.file, e.to_string()),
+        Ok(f) => f
+    };
+
+    println!("Importing model...");
+    let (mut models, materials) = match tobj::load_obj(&file, true) {
+        Err(e) => panic!("Error encountered when loading obj file: {}", e.to_string()),
+        Ok(f) => f,
+    };
+
+    println!("Loading materials...");
+    let mut material_images = Vec::<RgbaImage>::new();
+    for material in materials {
+        let image_path = file.canonicalize().unwrap().parent().unwrap().join(&material.diffuse_texture);
+        println!("{:?}", image_path);
+
+        let image = match image::open(&image_path) {
+            Err(e) =>  panic!("Error encountered when loading {:} texture file from {:?}: {:}", &material.diffuse_texture, &image_path, e.to_string()),
+            Ok(f) => f.into_rgba(),
+        };
+        material_images.push(image);
+    }
+
+    println!("Voxelizing...");
+    voxelize(&mut models, &material_images, opt.scale)
+}
+
 fn write_brs_data(mut octree: &mut VoxelTree::<Vector4::<u8>>, output: PathBuf, simplify_algo: String) {
-    let mut write_data = brs::Reader::new(File::open("blank.brs").unwrap()).unwrap().read_header1().unwrap().read_header2().unwrap().into_write_data().unwrap();
+    let blank_data = match File::open("blank.brs") {
+        Err(e) => panic!("Error encountered when loading blank.brs file: {:}", e.to_string()),
+        Ok(data) => data,
+    };
+
+    let mut write_data = brs::Reader::new(blank_data).unwrap().read_header1().unwrap().read_header2().unwrap().into_write_data().unwrap();
     write_data.bricks.clear();
 
     println!("Simplifying {:?}...", simplify_algo);

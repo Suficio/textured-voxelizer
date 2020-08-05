@@ -83,7 +83,6 @@ fn plane_box_overlap(half_box: f32, normal: Vector3<f32>, vert: Vector3<f32>) ->
         }
     }
 
-    // Dot products
     if normal.dot(vmin) > 0.0 { return false };
     if normal.dot(vmax) >= 0.0 { return true };
 

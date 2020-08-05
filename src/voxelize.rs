@@ -16,7 +16,9 @@ struct Triangle {
     uvs: Option::<[Vector2::<f32>; 3]>
 }
 
-pub fn voxelize(models: &mut Vec::<tobj::Model>, materials: &Vec::<RgbaImage>, octree: &mut VoxelTree::<Vector4::<u8>>, scale: f32) {
+pub fn voxelize(models: &mut Vec::<tobj::Model>, materials: &Vec::<RgbaImage>, scale: f32) -> VoxelTree::<Vector4::<u8>> {
+    let mut octree = VoxelTree::<Vector4::<u8>>::new();
+
     // Determine model AABB to expand triangle octree to final size
     // Multiply y-coordinate by 2.5 to take into account plates
     
@@ -85,7 +87,9 @@ pub fn voxelize(models: &mut Vec::<tobj::Model>, materials: &Vec::<RgbaImage>, o
         }
     }
 
-    recursive_voxelize(&mut octree.contents, mask, triangles, materials)
+    recursive_voxelize(&mut octree.contents, mask, triangles, materials);
+
+    octree
 }
 
 fn recursive_voxelize<'a>(branches: &'a mut Branches<Vector4::<u8>>, mask: isize, vector: Vec::<Triangle>, materials: &Vec::<RgbaImage>) {

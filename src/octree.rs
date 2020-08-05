@@ -49,28 +49,6 @@ impl<T> VoxelTree<T> {
         && (voxel.y + 1) <= high
         && (voxel.z + 1) <= high
     }
-
-    pub fn find_mask(&self, voxel_size: i16) -> isize {
-        // When we compare the voxel position to octree bounds to choose subtrees
-        // for insertion, we'll be comparing voxel position to values of 2^n and
-        // -2^n, so we can just use the position bits to branch directly.
-        // This actually works for negative values too, without much wrestling:
-        // we need to branch on the sign bit up front, but after that, two's
-        // complement magic means the branching on bits works regardless of sign.
-    
-        let mut mask = (1 << self.size) >> 1;
-    
-        // Shift everything by the voxel's size, so we can compare the mask to 0
-        // to know whether we're done.
-        if voxel_size >= 0 {
-            mask = mask >> voxel_size;
-        } else {
-            // TODO: Check for overflow.
-            mask = mask << -voxel_size;
-        }
-    
-        mask
-    }
     
     pub fn grow_to_hold(&mut self, voxel: Vector3::<isize>) {
         while !self.contains_bounds(voxel) {
@@ -109,52 +87,39 @@ impl<T> VoxelTree<T> {
         }
     }
 
-    pub fn get_mut_or_create<'a>(&'a mut self, voxel: Vector3::<isize>, voxel_size: i16) -> &'a mut TreeBody<T> {
+    pub fn get_mut_or_create<'a>(&'a mut self, voxel: Vector3::<isize>) -> &'a mut TreeBody<T> {
         self.grow_to_hold(voxel);
-        let mut m = self.find_mask(voxel_size);
-        let mut branches = &mut self.contents;
-
-        let branch = &mut branches[
+        let mut m = 1 << self.size;
+        let mut branch = &mut self.contents[
             (((voxel.x >= 0) as usize) << 2)
             + (((voxel.y >= 0) as usize) << 1)
             + (voxel.z >= 0) as usize
         ];
-
-        if m == 0 { return branch } // We've reached the voxel.
-        branches = VoxelTree::get_mut_or_create_step(branch);
         
         loop {
-            let branch = &mut branches[
-                ((((voxel.x & m) != 0) as usize) << 2)
-                + ((((voxel.y & m) != 0) as usize) << 1)
-                + ((voxel.z & m) != 0) as usize
-            ];
-                
             m = m >> 1;
             if m == 0 { return branch }
-            branches = VoxelTree::get_mut_or_create_step(branch);
-        }
-    }
-    
-    fn get_mut_or_create_step<'a>(branch: &'a mut TreeBody<T>) -> &'a mut Branches<T> {
-        match *branch {
-            TreeBody::Branch(ref mut b) => b,
-            TreeBody::Empty => {
-                *branch = TreeBody::Branch(Box::new(TreeBody::empty()));
+
+            let branch_id = ((((voxel.x & m) != 0) as usize) << 2)
+            + ((((voxel.y & m) != 0) as usize) << 1)
+            + ((voxel.z & m) != 0) as usize;
+
+            match branch {
+                TreeBody::Branch(b) => {
+                    branch = &mut b[branch_id];
+                },
+                _ => {
+                    // Make branch into a TreeBody::Branch if it isint
+                    *branch = TreeBody::Branch(Box::new(TreeBody::empty()));
                     
-                match *branch {
-                    TreeBody::Branch(ref mut b) => b,
-                    _ => unreachable!(),
+                    match branch {
+                        TreeBody::Branch(b) => {
+                            branch = &mut b[branch_id];
+                        },
+                        _ => unreachable!()
+                    }
                 }
-            },
-            TreeBody::Leaf(_) => {
-                *branch = TreeBody::Branch(Box::new(TreeBody::empty()));
-                
-                match *branch {
-                    TreeBody::Branch(ref mut b) => b,
-                    _ => unreachable!(),
-                }
-            },
+            };
         }
     }
 
@@ -164,8 +129,8 @@ impl<T> VoxelTree<T> {
         
         let branches = &mut self.contents;
         match VoxelTree::get_any_recursive(branches, mask, voxel) {
-            Some(vector) => (vector, self.get_mut_or_create(vector, 0)),
-            None => (voxel, self.get_mut_or_create(Vector3::<isize>::new(0, 0, 0), 0))
+            Some(vector) => (vector, self.get_mut_or_create(vector)),
+            None => (voxel, self.get_mut_or_create(Vector3::<isize>::new(0, 0, 0)))
         }
     }
 

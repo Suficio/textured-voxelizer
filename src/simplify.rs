@@ -28,10 +28,11 @@ pub fn simplify(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &mut brs::W
         let mut yp = y + 1;
         let mut zp = z + 1;
 
-        // Expand z direction first due to octree ordering followed by y
+        // Expand z direction first due to octree ordering followed by y and x
         // Ensures blocks are simplified in the pattern of Morton coding
+        // Saves us having to check in the negative directions
         while zp - z < 200 {
-            let voxel = octree.get_mut_or_create(Vector3::new(x, y, zp), 0);
+            let voxel = octree.get_mut_or_create(Vector3::new(x, y, zp));
             match voxel {
                 TreeBody::Leaf(c) => {
                     colors.push(*c);
@@ -44,7 +45,7 @@ pub fn simplify(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &mut brs::W
         while yp - y < 200 {
             let mut pass = true;
             for sz in z..zp {
-                let voxel = octree.get_mut_or_create(Vector3::new(x, yp, sz), 0);
+                let voxel = octree.get_mut_or_create(Vector3::new(x, yp, sz));
                 match voxel {
                     TreeBody::Leaf(c) => colors.push(*c),
                     _ => { pass = false; break }
@@ -58,7 +59,7 @@ pub fn simplify(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &mut brs::W
             let mut pass = true;
             for sy in y..yp {
                 for sz in z..zp {
-                    let voxel = octree.get_mut_or_create(Vector3::new(xp, sy, sz), 0);
+                    let voxel = octree.get_mut_or_create(Vector3::new(xp, sy, sz));
                     match voxel {
                         TreeBody::Leaf(c) => colors.push(*c),
                         _ => { pass = false; break }
@@ -76,7 +77,7 @@ pub fn simplify(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &mut brs::W
         for sx in x..xp {
             for sy in y..yp {
                 for sz in z..zp {
-                    let voxel = octree.get_mut_or_create(Vector3::new(sx, sy, sz), 0);
+                    let voxel = octree.get_mut_or_create(Vector3::new(sx, sy, sz));
                     *voxel = TreeBody::Empty;
                 }
             }
@@ -141,7 +142,7 @@ pub fn simplify_lossless(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &m
         // Expand z direction first due to octree ordering followed by y
         // Ensures blocks are simplified in the pattern of Morton coding
         while zp < len && (zp - z) < 200 {
-            let voxel = octree.get_mut_or_create(Vector3::new(x, y, zp), 0);
+            let voxel = octree.get_mut_or_create(Vector3::new(x, y, zp));
             match voxel {
                 TreeBody::Leaf(c) => {
                     let color_temp = match_hsv_to_colorset(&colorset, &rgb2hsv(*c));
@@ -155,7 +156,7 @@ pub fn simplify_lossless(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &m
         while yp < len && (yp - y) < 200 {
             let mut pass = true;
             for sz in z..zp {
-                let voxel = octree.get_mut_or_create(Vector3::new(x, yp, sz), 0);
+                let voxel = octree.get_mut_or_create(Vector3::new(x, yp, sz));
                 match voxel {
                     TreeBody::Leaf(c) => {
                         let color_temp = match_hsv_to_colorset(&colorset, &rgb2hsv(*c));
@@ -172,7 +173,7 @@ pub fn simplify_lossless(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &m
             let mut pass = true;
             for sy in y..yp {
                 for sz in z..zp {
-                    let voxel = octree.get_mut_or_create(Vector3::new(xp, sy, sz), 0);
+                    let voxel = octree.get_mut_or_create(Vector3::new(xp, sy, sz));
                     match voxel {
                         TreeBody::Leaf(c) => {
                             let color_temp = match_hsv_to_colorset(&colorset, &rgb2hsv(*c));
@@ -193,7 +194,7 @@ pub fn simplify_lossless(octree: &mut VoxelTree::<Vector4::<u8>>, write_data: &m
         for sx in x..xp {
             for sy in y..yp {
                 for sz in z..zp {
-                    let voxel = octree.get_mut_or_create(Vector3::new(sx, sy, sz), 0);
+                    let voxel = octree.get_mut_or_create(Vector3::new(sx, sy, sz));
                     *voxel = TreeBody::Empty;
                 }
             }
