@@ -93,7 +93,7 @@ fn generate_octree(opt: &Opt) -> VoxelTree<Vector4<u8>> {
 
             material_images.push(image);
         } else {
-            let image_path = file.canonicalize().unwrap().parent().unwrap().join(&material.diffuse_texture);
+            let image_path = opt.file.parent().unwrap().join(&material.diffuse_texture);
             println!("\tLoading diffuse texture for {} from: {:?}", material.name, image_path);
 
             let image = match image::open(&image_path) {
